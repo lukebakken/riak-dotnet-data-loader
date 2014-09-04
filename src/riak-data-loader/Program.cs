@@ -5,7 +5,7 @@
     using System.Text;
     using CorrugatedIron;
     using CorrugatedIron.Models;
-    using Newtonsoft.Json.Linq;
+    using TwitterLib;
 
     static class Program
     {

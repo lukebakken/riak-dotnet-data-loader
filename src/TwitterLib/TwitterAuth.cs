@@ -1,4 +1,4 @@
-﻿namespace riak_data_loader
+﻿namespace TwitterLib
 {
     public class TwitterAuth
     {

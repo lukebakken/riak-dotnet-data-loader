@@ -12,6 +12,7 @@ Release
 RELEASE
 packages
 
+*.user
 *.orig
 *.ncb
 *.obj
