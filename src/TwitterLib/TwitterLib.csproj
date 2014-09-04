@@ -76,6 +76,9 @@
     <Reference Include="Tweetinvi.WebLogic">
       <HintPath>..\..\packages\TweetinviAPI.0.9.3.4\lib\Tweetinvi.WebLogic.dll</HintPath>
     </Reference>
+    <Reference Include="YamlDotNet">
+      <HintPath>..\..\packages\YamlDotNet.3.2.2\lib\net35\YamlDotNet.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Extensions.cs" />
@@ -85,7 +88,9 @@
     <Compile Include="TwitterStreamer.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
