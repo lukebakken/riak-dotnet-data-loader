@@ -36,9 +36,11 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Extensions.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TwitterAuth.cs" />
+    <Compile Include="TwitterParser.cs" />
     <Compile Include="TwitterStreamer.cs" />
   </ItemGroup>
   <ItemGroup>

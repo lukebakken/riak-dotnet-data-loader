@@ -40,6 +40,12 @@
             sampleStream.StartStream();
         }
 
+        public void StopStreaming()
+        {
+            sampleStream.JsonObjectReceived -= sampleStream_JsonObjectReceived;
+            sampleStream.StopStream();
+        }
+
         public void Dispose()
         {
             sampleStream.JsonObjectReceived -= sampleStream_JsonObjectReceived;
