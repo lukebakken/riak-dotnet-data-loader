@@ -2,7 +2,6 @@
 {
     using System;
 #if DEBUG
-    using System.Diagnostics;
 #endif
     using Tweetinvi;
     using Tweetinvi.Core.Events.EventArguments;
@@ -24,10 +23,11 @@
             TwitterCredentials.SetCredentials(
                 twitterAuth.AccessToken, twitterAuth.AccessTokenSecret,
                 twitterAuth.ApiKey, twitterAuth.ApiSecret);
-#if DEBUG
+
+            /*
             var user = User.GetLoggedUser();
-            Debug.WriteLine("[info] Twitter user screen name: {0}", user.ScreenName);
-#endif
+            Console.Out.WriteLine("[info] Twitter user screen name: {0}", user.ScreenName);
+            */
 
             sampleStream = Stream.CreateSampleStream();
             sampleStream.JsonObjectReceived += sampleStream_JsonObjectReceived;
@@ -48,7 +48,7 @@
 
         public void Dispose()
         {
-            sampleStream.JsonObjectReceived -= sampleStream_JsonObjectReceived;
+            StopStreaming();
         }
 
         private void sampleStream_JsonObjectReceived(object sender, JsonObjectEventArgs e)
