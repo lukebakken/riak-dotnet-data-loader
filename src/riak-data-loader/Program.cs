@@ -1,33 +1,23 @@
 ﻿namespace riak_data_loader
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using RiakClient;
     using RiakClient.Models;
-    using TwitterLib;
 
     static class Program
     {
         private static readonly IRiakEndPoint cluster = null;
 
         private static bool running = true;
-        private static uint tweetCount = 1024;
-        private static int tweetsReceived = 0;
+        private static uint objectCount = 1024;
+        private static int objectsSaved = 0;
 
-        private const ushort streamerCount = 8;
-        private const ushort saverCount = 8;
-
-        private static List<Task> streamerTasks = new List<Task>();
-        private static List<TwitterStreamer> streamers = new List<TwitterStreamer>();
+        private const ushort saverCount = 48;
 
         private static List<Task> saverTasks = new List<Task>();
-
-        private static ConcurrentQueue<string> tweetsQueue = new ConcurrentQueue<string>();
-        private static AutoResetEvent tweetEvent = new AutoResetEvent(false);
 
         static Program()
         {
@@ -40,7 +30,7 @@
 
             if (args != null && args.Length > 0)
             {
-                tweetCount = Convert.ToUInt32(args[0]);
+                objectCount = Convert.ToUInt32(args[0]);
             }
 
             var client = cluster.CreateClient();
@@ -48,23 +38,12 @@
 
             if (pingResult.IsSuccess)
             {
-                Console.Out.WriteLine("[info] Streaming tweets. CTRL-C stops.");
+                Console.Out.WriteLine("[info] saving random data. CTRL-C stops.");
 
                 for (ushort i = 0; i < saverCount; i++)
                 {
                     Console.Out.WriteLine("[info] starting saver {0}", i);
-                    saverTasks.Add(Task.Run(() => TweetSaver()));
-                }
-
-                for (ushort i = 0; i < streamerCount; i++)
-                {
-                    Console.Out.WriteLine("[info] starting streamer {0}", i);
-                    streamerTasks.Add(Task.Run(() =>
-                    {
-                        var streamer = new TwitterStreamer(OnTweetReceived);
-                        streamers.Add(streamer);
-                        streamer.StartStreaming();
-                    }));
+                    saverTasks.Add(Task.Run(() => ObjectSaver()));
                 }
 
                 Task.WaitAll(saverTasks.ToArray());
@@ -86,19 +65,8 @@
         {
             running = false;
 
-            Console.Out.WriteLine("[info] stopping streamers...");
-
-            streamers.ForEach(s =>
-            {
-                s.StopStreaming();
-                s.Dispose();
-            });
-
             Console.Out.WriteLine("[info] waiting for saver tasks...");
             Task.WaitAll(saverTasks.ToArray());
-
-            Console.Out.WriteLine("[info] waiting for streamer tasks...");
-            Task.WaitAll(streamerTasks.ToArray());
 
             Console.Out.WriteLine("[info] All done! - EXITING");
             if (exit)
@@ -107,51 +75,43 @@
             }
         }
 
-        static void TweetSaver()
+        static void ObjectSaver()
         {
-            string tweetJson;
+            int threadId = Thread.CurrentThread.ManagedThreadId;
+
             IRiakClient client = cluster.CreateClient();
 
-            while (running && tweetsReceived <= tweetCount)
+            Random r = new Random(threadId);
+            var bytes = new byte[65536];
+            r.NextBytes(bytes);
+
+            while (running && objectsSaved <= objectCount)
             {
-                tweetEvent.WaitOne(TimeSpan.FromMilliseconds(250));
-                if (tweetsQueue.TryDequeue(out tweetJson))
+                string idStr = String.Format("{0}_{1}", threadId, objectsSaved);
+
+                var id = new RiakObjectId("data-type", "data", idStr);
+                var value = new RiakObject(id, bytes, RiakConstants.ContentTypes.ApplicationOctetStream, RiakConstants.CharSets.Binary);
+
+                var result = client.Put(value);
+                if (result.IsSuccess == false)
                 {
-                    var twitterParser = new TwitterParser(tweetJson);
-                    if (twitterParser.IsTweet)
+                    Console.Error.WriteLine("[error] PUT error: {0}", result.ErrorMessage);
+                }
+                else
+                {
+                    Interlocked.Increment(ref objectsSaved);
+                    if (objectsSaved % 64 == 0)
                     {
-                        // Console.Out.WriteLine("[info] thread {0} tweet {1}", Thread.CurrentThread.ManagedThreadId, twitterParser.IdStr);
-                        var id = new RiakObjectId("tweets-type", "tweets", twitterParser.IdStr);
-                        var value = new RiakObject(id, twitterParser.Bytes, RiakConstants.ContentTypes.ApplicationJson, Encoding.UTF8.EncodingName);
-
-                        var result = client.Put(value);
-                        if (result.IsSuccess == false)
-                        {
-                            Console.Error.WriteLine("[error] PUT error: {0}", result.ErrorMessage);
-                        }
-                        else
-                        {
-                            Interlocked.Increment(ref tweetsReceived);
-                            if (tweetsReceived % 64 == 0)
-                            {
-                                Console.Out.WriteLine("[info] tweets stored: {0}", tweetsReceived);
-                            }
-                        }
-
-                        if (tweetsReceived >= tweetCount)
-                        {
-                            Console.Out.WriteLine("[info] tweets stored: {0}, EXITING", tweetsReceived);
-                            return;
-                        }
+                        Console.Out.WriteLine("[info] data stored: {0}", objectsSaved);
                     }
                 }
-            }
-        }
 
-        static void OnTweetReceived(string tweetJson)
-        {
-            tweetsQueue.Enqueue(tweetJson);
-            tweetEvent.Set();
+                if (objectsSaved >= objectCount)
+                {
+                    Console.Out.WriteLine("[info] data stored: {0}, EXITING", objectsSaved);
+                    return;
+                }
+            }
         }
     }
 }
